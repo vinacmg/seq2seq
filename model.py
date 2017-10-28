@@ -51,6 +51,7 @@ class Seq2Seq(object):
 			cell=decoder_cell,
 			dtype=tf.float32,
 			sequence_length=dec_seq_lenght,
+			initial_state=encoder_final_state,
 			inputs=self.decoder_inputs,
 			time_major=True)
 
