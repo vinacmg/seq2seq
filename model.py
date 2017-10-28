@@ -1,46 +1,76 @@
 import numpy as np
 import tensorflow as tf
 
-input_max_lenght = 5
-encoder_inputs = tf.placeholder(tf.float32, [input_max_lenght, None, 1]) #seq max lenght, batch size, data dimension size
 
-encoder_hidden_num = 5
-encoder_outputs_size = 5
-encoder_seq_lenght = tf.placeholder(tf.int32, [None])
+class Seq2Seq(object):
 
+	def __init__(self, input_vocab_size, target_vocab_size, buckets, 
+		hidden_units, num_layers, batch_size, learning_rate, 
+		enc_seq_lenght, dec_seq_lenght, embeddings, encoder_input_ids,
+		decoder_input_ids,decoder_target_ids):
+		#
+		#
+		#
+		#
+		#self.encoder_inputs, self.decoder_inputs = [max-time, batch-size, ...]
+		#
+		#
+		self.encoder_inputs = tf.nn.embedding_lookup(embeddings, encoder_input_ids) 
+		self.decoder_inputs = tf.nn.embedding_lookup(embeddings, decoder_input_ids)
 
-'''
-class Seq2Seq(object)
+		#Encoder######################
 
-	def __init__():
-'''
+		cell = tf.nn.rnn_cell.LSTMCell(num_units = hidden_units, state_is_tuple=True) #como inicializar weights??
+		encoder_cell = cell
+		if num_layers > 1:
+			encoder_cell = tf.nn.rnn_cell.MultiRNNCell([cell]*num_layers, state_is_tuple=True)
 
-class Encoder(object):
+		self.encoder_outputs, self.encoder_final_state = tf.nn.dynamic_rnn(
+			cell=encoder_cell,
+			dtype=tf.float32,
+			sequence_length=enc_seq_lenght,
+			inputs=self.encoder_inputs,
+			time_major=True)
 
-	def __init__(self, encoder_inputs, input_max_lenght, encoder_hidden_num, encoder_seq_lenght):
+		###############################
 
-		encoder_cell = tf.nn.rnn_cell.LSTMCell(num_units = encoder_hidden_num, state_is_tuple = True)
+		#Decoder#######################
 
-		((encoder_outputs_fw, encoder_outputs_bw), (encoder_final_state_fw, encoder_final_state_bw)) = tf.nn.bidirectional_dynamic_rnn( #time_major = true -> output_fw = [max_time, batch_size, cell_fw.output_size]
-			cell_fw = encoder_cell,
-			cell_bw = encoder_cell,
-			dtype = tf.float32,
-			sequence_length = encoder_seq_lenght,
-			inputs = encoder_inputs,
-			time_major = True) 
+		# lembrar de encoder_final_state.h 
 
-		self.encoder_outputs = tf.concat((encoder_outputs_fw, encoder_outputs_bw), 2, name = 'encoder_outputs')
+		#weights of output projection
+		W = tf.Variable(tf.random_uniform([hidden_units, target_vocab_size], -1, 1), dtype=tf.float32)
+		#biases of output projection
+		b = tf.Variable(tf.zeros([target_vocab_size]), dtype=tf.float32)
 
-		encoder_final_state_c = tf.concat(
-		    (encoder_final_state_fw.c, encoder_final_state_bw.c), 1, name = 'encoder_final_state_c')
+		decoder_cell = cell
+		if num_layers > 1:
+			decoder_cell = tf.nn.rnn_cell.MultiRNNCell([cell]*num_layers, state_is_tuple=True)
 
-		encoder_final_state_h = tf.concat(
-		    (encoder_final_state_bw.h, encoder_final_state_bw.h), 1, name = 'encoder_final_state_h')
+		self.decoder_outputs, self.decoder_final_state = tf.nn.dynamic_rnn(
+			cell=decoder_cell,
+			dtype=tf.float32,
+			sequence_length=dec_seq_lenght,
+			inputs=self.decoder_inputs,
+			time_major=True)
 
-		#TF Tuple used by LSTM Cells for state_size, zero_state, and output state.
-		self.encoder_final_state = tf.contrib.rnn.LSTMStateTuple(
-		    c = encoder_final_state_c,
-		    h = encoder_final_state_h
-		)
+		###############################
 
-encoder =  Encoder(encoder_inputs, input_max_lenght, encoder_hidden_num, encoder_seq_lenght)
+		decoder_max_steps, decoder_batch_size, decoder_dim = tf.unstack(tf.shape(decoder_outputs))
+		decoder_outputs_flat = tf.reshape(decoder_outputs, (-1, decoder_dim))
+		decoder_logits_flat = tf.add(tf.matmul(decoder_outputs_flat, W), b)
+		decoder_logits = tf.reshape(decoder_logits_flat, (decoder_max_steps, decoder_batch_size, target_vocab_size))
+
+		#para inferencia###################
+		#decoder_probabilites = tf.nn.softmax(decoder_logits)
+		#decoder_prediction = tf.argmax(decoder_probabilites, 2) #[max-time,batch-size]
+		###################################
+
+		stepwise_cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
+			labels=tf.one_hot(decoder_target_ids, depth=target_vocab_size, dtype=tf.float32),
+			logits=decoder_logits,)
+
+		loss = tf.reduce_mean(stepwise_cross_entropy)
+		train_op = tf.train.AdamOptimizer().minimize(loss)
+
+		sess.run(tf.global_variables_initializer())
