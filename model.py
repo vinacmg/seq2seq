@@ -75,3 +75,4 @@ class Seq2Seq(object):
 		train_op = tf.train.AdamOptimizer().minimize(loss)
 
 		sess.run(tf.global_variables_initializer())
+		
