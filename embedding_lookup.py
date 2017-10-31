@@ -12,7 +12,16 @@ x = np.random.randint(6, size=(5,10),)
 loss = tf.reduce_sum(encoder_input_ids)
 
 sess.run(tf.global_variables_initializer())
-
-#print(tf.nn.embedding_lookup(embeddings, ids))
+'''
+print(tf.nn.embedding_lookup(embeddings, ids))
 print(sess.run(encoder_input_ids, feed_dict={encoder_input_ids: x}))
 print(x)
+'''
+
+lista = []
+inp = input("Sequence: ")
+for integer in inp:
+	lista.append(int(integer)) 
+
+print([1] + lista[:])
+print(lista)

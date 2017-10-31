@@ -4,26 +4,31 @@ import matplotlib.pyplot as plt
 
 max_time = 5
 data_size = 20000
-target_vocab_size = 6
+target_vocab_size = 8
 embedding_size = 6
 hidden_units = 20
 num_layers = 2
 batch_size = 100
-epochs = 1
+epochs = 5
 
 
 def generate_data(x_size, y_size):
-	return np.random.randint(6, size=(x_size,y_size))
+	return np.random.randint(2, 8, size=(x_size,y_size))
 
+
+EOS = np.matrix(np.ones(data_size))
 x = generate_data(max_time,data_size)
-y = x
-seq_length = np.array([5]*batch_size)
+y = np.concatenate((EOS, x),)
+target = np.concatenate((x, EOS),)
+enc_seq_length = np.array([5]*batch_size)
+dec_seq_length = np.array([6]*batch_size)
 
 sess = tf.Session()
 
 encoder_input_ids = tf.placeholder(shape=[None,None], dtype=tf.int32, name='encoder_inputs')
-sequence_length = tf.placeholder(shape=[None], dtype=tf.int32, name='sequence_length')
+encoder_sequence_length = tf.placeholder(shape=[None], dtype=tf.int32, name='encoder_sequence_length')
 decoder_input_ids = tf.placeholder(shape=[None,None], dtype=tf.int32, name='encoder_inputs')
+decoder_sequence_length = tf.placeholder(shape=[None], dtype=tf.int32, name='decoder_sequence_length')
 decoder_targets_ids = tf.placeholder(shape=[None,None], dtype=tf.int32, name='encoder_inputs')
 
 embeddings = tf.Variable(tf.random_uniform([target_vocab_size, embedding_size], -1.0, 1.0), dtype=tf.float32)
@@ -45,7 +50,7 @@ else: encoder_cell = tf.nn.rnn_cell.MultiRNNCell(tf.nn.rnn_cell.LSTMCell(num_uni
 encoder_outputs, encoder_final_state = tf.nn.dynamic_rnn(
 	cell=encoder_cell,
 	dtype=tf.float32,
-	sequence_length=sequence_length,
+	sequence_length=encoder_sequence_length,
 	inputs=encoder_inputs,
 	time_major=True,
 	scope="encoder")
@@ -70,7 +75,7 @@ else: decoder_cell = tf.nn.rnn_cell.MultiRNNCell(tf.nn.rnn_cell.LSTMCell(num_uni
 decoder_outputs, decoder_final_state = tf.nn.dynamic_rnn(
 	cell=decoder_cell,
 	dtype=tf.float32,
-	sequence_length=sequence_length,
+	sequence_length=decoder_sequence_length,
 	initial_state=encoder_final_state,
 	inputs=decoder_inputs,
 	time_major=True,
@@ -104,27 +109,60 @@ for epoch in range(0, epochs):
 	for batch in range(0, 199):
 		input_x = x[:,batch*batch_size:(batch+1)*batch_size]
 		input_y = y[:,batch*batch_size:(batch+1)*batch_size]
+		target_y = target[:,batch*batch_size:(batch+1)*batch_size]
 
 		_, l = (sess.run([train_op, loss], feed_dict={encoder_input_ids: input_x, 
 			decoder_input_ids: input_y, 
-			sequence_length: seq_length, 
-			decoder_targets_ids: input_y}))
+			encoder_sequence_length: enc_seq_length, 
+			decoder_targets_ids: target_y,
+			decoder_sequence_length: dec_seq_length}))
 		loss_track.append(l)
-
+'''
 input_x = x[:,19900:20000]
 input_y = y[:,19900:20000]
+target_y = target[:,19900:20000]
 
 decoder_probabilites = tf.nn.softmax(decoder_logits)
 decoder_prediction = tf.argmax(decoder_probabilites, 2) #[max-time,batch-size]
 
 prediction = sess.run(decoder_prediction, feed_dict={encoder_input_ids: input_x, 
 			decoder_input_ids: input_y, 
-			sequence_length: seq_length, 
-			decoder_targets_ids: input_y})
+			encoder_sequence_length: enc_seq_length, 
+			decoder_targets_ids: target_y,
+			decoder_sequence_length: dec_seq_length})
 
 for i in range(100):
-	print(input_x[:,i], end= " ")
+	print(input_y[:,i], end= " ")
 	print(prediction[:,i])
 
 plt.plot(loss_track)
 plt.show()
+
+print(loss_track[-1])
+'''
+
+def inference(decoder_logits):
+	while (True):
+		lista = []
+		inp = input("Sequence: ")
+		for char in inp:
+			lista.append(int(char))
+
+		input_x = np.transpose(np.matrix(lista))
+		input_y = np.transpose(np.matrix([1] + lista)) #dont want to change lista values
+		target_y = np.transpose(np.matrix(lista + [1]))
+		enc_seq_length = np.array([len(input_x)])
+		dec_seq_length = np.array([len(target_y)])
+
+		decoder_probabilites = tf.nn.softmax(decoder_logits)
+		decoder_prediction = tf.argmax(decoder_probabilites, 2) #[max-time,batch-size]
+
+		prediction = sess.run(tf.transpose(decoder_prediction), feed_dict={encoder_input_ids: input_x, 
+				decoder_input_ids: input_y, 
+				encoder_sequence_length: enc_seq_length, 
+				decoder_targets_ids: target_y,
+				decoder_sequence_length: dec_seq_length})
+
+		print(prediction)
+
+inference(decoder_logits)
