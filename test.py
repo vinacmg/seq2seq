@@ -24,6 +24,8 @@ enc_seq_length = np.array([5]*batch_size)
 dec_seq_length = np.array([6]*batch_size)
 
 sess = tf.Session()
+loader = tf.train.import_meta_graph('save/my_test_model.meta')
+loader.restore(sess, tf.train.latest_checkpoint('save/'))
 
 encoder_input_ids = tf.placeholder(shape=[None,None], dtype=tf.int32, name='encoder_inputs')
 encoder_sequence_length = tf.placeholder(shape=[None], dtype=tf.int32, name='encoder_sequence_length')
@@ -100,6 +102,7 @@ stepwise_cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
 loss = tf.reduce_mean(stepwise_cross_entropy)
 train_op = tf.train.AdamOptimizer(0.01).minimize(loss)
 
+saver = tf.train.Saver()
 sess.run(tf.global_variables_initializer())
 
 ###########################################
@@ -141,7 +144,10 @@ plt.show()
 print(loss_track[-1])
 '''
 
+#saver.save(sess, "save/my_test_model")
+
 def inference(decoder_logits):
+
 	while (True):
 		lista = []
 		inp = input("Sequence: ")
