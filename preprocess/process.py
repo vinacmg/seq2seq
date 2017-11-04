@@ -1,8 +1,13 @@
 from nltk.tokenize import word_tokenize, sent_tokenize
 from nltk import Text, FreqDist
-from srt_to_string import list_subs
 import json
 import glob
+import copy
+
+try:
+	from .srt_to_string import list_subs
+except: 
+	from srt_to_string import list_subs
 
 
 def replace_all(string, proib_list, new_word=''):
@@ -14,7 +19,6 @@ def replace_all(string, proib_list, new_word=''):
 
 def build_dictionaries(tokens, vocab_size):
 
-	#considerando EOS e PAD dicionario tem vocab_size + 2 de tamanho
 	num2word = {}
 	word2num = {}
 
@@ -22,14 +26,16 @@ def build_dictionaries(tokens, vocab_size):
 	most_common = fdist.most_common(vocab_size)
 	sort = sorted(most_common)
 	
-	for i in range(0, vocab_size):
-		num2word[i+2] = sort[i][0]
-		word2num[sort[i][0]] = i+2
+	for i in range(3, vocab_size):
+		num2word[i] = sort[i-3][0]
+		word2num[sort[i-3][0]] = i
 
 	num2word[0] = "PAD"
 	num2word[1] = "EOS"
-	word2num[0] = "PAD"
-	word2num[1] = "EOS"
+	num2word[2] = "UNK"
+	word2num["PAD"] = 0
+	word2num["EOS"] = 1
+	word2num["UNK"] = 2
 
 	return num2word, word2num
 
@@ -43,9 +49,9 @@ def save_dictionaries(num2word, word2num):
 
 		json.dump(word2num, f)
 
-def load_dictionaries():
+def load_dictionaries(directory):
 
-	with open('num2word.txt', 'r') as f:
+	with open(directory + 'num2word.txt', 'r') as f:
 
 		num2word = json.load(f)
 
@@ -53,11 +59,45 @@ def load_dictionaries():
 		num2word[i] = num2word[str(i)]
 		del num2word[str(i)]
 
-	with open('word2num.txt', 'r') as f:
+	with open(directory + 'word2num.txt', 'r') as f:
 
 		word2num = json.load(f)
 
 	return num2word, word2num
+
+
+def save_sentences(sentences_talked, sentences_answered, tokens):
+
+	with open('sentences_talked.txt', 'w') as f:
+
+		json.dump(sentences_talked, f)
+
+	with open('sentences_answered.txt', 'w') as f:
+
+		json.dump(sentences_answered, f)
+
+	with open('tokens.txt', 'w') as f:
+
+		json.dump(tokens, f)
+
+def load_sentences(directory):
+
+	with open(directory + 'sentences_talked.txt', 'r') as f:
+
+		sentences_talked = json.load(f)
+
+	with open(directory + 'sentences_answered.txt', 'r') as f:
+
+		sentences_answered = json.load(f)
+
+	with open(directory + 'tokens.txt', 'r') as f:
+
+		tokens = json.load(f)
+
+	return sentences_talked, sentences_answered, tokens
+
+
+
 
 
 dir_list = glob.glob('../../../Subs/srt/*.srt')
@@ -92,22 +132,25 @@ for srt in dir_list:
 
 	sentences_all, tkns = process_srt(srt)
 	
-	sentences_talked += (sentences_all[:-1])
-	sentences_answered += (sentences_all[1:])
+	sentences_talked += copy.deepcopy(sentences_all[:-1]) #copy values. not references
+	sentences_answered += copy.deepcopy(sentences_all[1:])
 	tokens += (tkns)
-
-
-print(sentences_talked)
-
-
-
-#tokens_set = set(tokens)
-
 '''
-numword, wordnum = build_dictionaries(tokens, 50)
-save_dictionaries(numword, wordnum)
+num2word, word2num = build_dictionaries(tokens, 10)
+save_dictionaries(num2word ,word2num)'''
+num2word, word2num = load_dictionaries("")
 
-num2word, word2num = load_dictionaries()
 
-print(word2num)
-print(numword)'''
+for sent in sentences_talked:
+	for i in range(0, len(sent)):
+		try:
+			sent[i] = word2num[sent[i]]
+		except:
+			sent[i] = word2num['UNK']
+
+for sent in sentences_answered:
+	for i in range(0, len(sent)):
+		try:
+			sent[i] = word2num[sent[i]]
+		except:
+			sent[i] = word2num['UNK']

@@ -1,5 +1,6 @@
 import tensorflow as tf
 import numpy as np
+from preprocess.process import load_sentences, load_dictionaries
 
 sess = tf.Session()
 
@@ -18,10 +19,5 @@ print(sess.run(encoder_input_ids, feed_dict={encoder_input_ids: x}))
 print(x)
 '''
 
-lista = []
-inp = input("Sequence: ")
-for integer in inp:
-	lista.append(int(integer)) 
-
-print([1] + lista[:])
-print(lista)
+sentences_talked, sentences_answered, tokens = load_sentences('preprocess/')
+num2word, word2num = load_dictionaries('preprocess/')
