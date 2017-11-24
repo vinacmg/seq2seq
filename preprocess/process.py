@@ -3,6 +3,7 @@ from nltk import Text, FreqDist
 import json
 import glob
 import copy
+import numpy as np
 
 try:
 	from .srt_to_string import list_subs
@@ -96,11 +97,32 @@ def load_sentences(directory):
 
 	return sentences_talked, sentences_answered, tokens
 
+def save_ids(ids_talked, ids_answered):
+
+	with open('ids_talked.txt', 'w') as f:
+
+		json.dump(ids_talked, f)
+
+	with open('ids_answered.txt', 'w') as f:
+
+		json.dump(ids_answered, f)
+
+def load_ids(directory):
+
+	with open(directory + 'ids_talked.txt', 'r') as f:
+
+		ids_talked = json.load(f)
+
+	with open(directory + 'ids_answered.txt', 'r') as f:
+
+		ids_answered = json.load(f)
+
+	return ids_talked, ids_answered
 
 
+###START####	
 
-
-dir_list = glob.glob('../../../Subs/srt/*.srt')
+dir_list = glob.glob('../srt/*.srt')
 
 tags = ['<i>','</i>','{i}','{/i}','<b>','</b>','{b}','{/b}','<u>','</u>','{u}','{/u}','\"','\''] #problemas com aspas
 
@@ -128,19 +150,25 @@ sentences_talked = []
 sentences_answered = []
 tokens = []
 
-for srt in dir_list:
+for srt in dir_list: #concat sentences of all subs
 
 	sentences_all, tkns = process_srt(srt)
 	
 	sentences_talked += copy.deepcopy(sentences_all[:-1]) #copy values. not references
 	sentences_answered += copy.deepcopy(sentences_all[1:])
 	tokens += (tkns)
+save_sentences(sentences_talked, sentences_answered, tokens)
 '''
-num2word, word2num = build_dictionaries(tokens, 10)
-save_dictionaries(num2word ,word2num)'''
+##########CUILDADO
+dict_size = 100
+num2word, word2num = build_dictionaries(tokens, dict_size)
+save_dictionaries(num2word ,word2num)
+#############
+'''
 num2word, word2num = load_dictionaries("")
 
-
+#sentences of 'word ids'
+#fazer função que faz isso e salva 
 for sent in sentences_talked:
 	for i in range(0, len(sent)):
 		try:
@@ -154,3 +182,29 @@ for sent in sentences_answered:
 			sent[i] = word2num[sent[i]]
 		except:
 			sent[i] = word2num['UNK']
+#
+#sentences of 'word ids'
+
+save_ids(sentences_talked, sentences_answered)
+ids_talked, ids_answered = load_ids("")
+
+max_length = 20
+
+for sent in ids_talked:
+	if(len(sent) < max_length):
+		sent += ([word2num["PAD"]]*(max_length - len(sent)))
+
+	elif(len(sent) > max_length):
+		print("ERROR: Set a max_length >= the max sentence lenght")
+		break
+
+for sent in ids_answered:
+	if(len(sent) < max_length):
+		sent += ([word2num["PAD"]]*(max_length - len(sent)))
+
+	elif(len(sent) > max_length):
+		print("ERROR: Set a max_length >= the max sentence lenght")
+		break
+
+print(np.transpose(np.matrix(ids_talked[30:50])))
+print(len(set(tokens)))
