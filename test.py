@@ -3,13 +3,13 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 
 max_time = 5
-data_size = 20000
+data_size = 5000
 target_vocab_size = 8
 embedding_size = 6
-hidden_units = 20
+hidden_units = 256
 num_layers = 2
-batch_size = 100
-epochs = 5
+batch_size = 25
+epochs = 10
 
 
 def generate_data(x_size, y_size):
@@ -18,8 +18,8 @@ def generate_data(x_size, y_size):
 
 EOS = np.matrix(np.ones(data_size))
 x = generate_data(max_time,data_size)
-y = np.concatenate((EOS, x),)
-target = np.concatenate((x, EOS),)
+y = np.concatenate((EOS, x[::-1,:]),)
+target = np.concatenate((x[::-1,:], EOS),)
 enc_seq_length = np.array([5]*batch_size)
 dec_seq_length = np.array([6]*batch_size)
 
@@ -31,7 +31,7 @@ decoder_input_ids = tf.placeholder(shape=[None,None], dtype=tf.int32, name='enco
 decoder_sequence_length = tf.placeholder(shape=[None], dtype=tf.int32, name='decoder_sequence_length')
 decoder_targets_ids = tf.placeholder(shape=[None,None], dtype=tf.int32, name='encoder_inputs')
 
-embeddings = tf.Variable(tf.random_uniform([target_vocab_size, embedding_size], -1.0, 1.0), dtype=tf.float32)
+embeddings = tf.Variable(tf.random_uniform([target_vocab_size, embedding_size], -0.8, 0.8), dtype=tf.float32)
 
 encoder_inputs = tf.nn.embedding_lookup(embeddings, encoder_input_ids) 
 decoder_inputs = tf.nn.embedding_lookup(embeddings, decoder_input_ids)
@@ -60,7 +60,7 @@ encoder_outputs, encoder_final_state = tf.nn.dynamic_rnn(
 #Decoder#######################
 
 #weights of output projection
-W = tf.Variable(tf.random_uniform([hidden_units, target_vocab_size], -1, 1), dtype=tf.float32)
+W = tf.Variable(tf.random_uniform([hidden_units, target_vocab_size], -0.8, 0.8), dtype=tf.float32)
 #biases of output projection
 b = tf.Variable(tf.zeros([target_vocab_size]), dtype=tf.float32)
 
@@ -98,10 +98,11 @@ stepwise_cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
 	logits=decoder_logits,)
 
 loss = tf.reduce_mean(stepwise_cross_entropy)
-train_op = tf.train.AdamOptimizer(0.01).minimize(loss)
+train_op = tf.train.AdamOptimizer(0.015).minimize(loss)
 
-#saver = tf.train.Saver()
+saver = tf.train.Saver()
 sess.run(tf.global_variables_initializer())
+
 loader = tf.train.Saver()
 loader.restore(sess, tf.train.latest_checkpoint('save/'))
 
@@ -109,7 +110,7 @@ loader.restore(sess, tf.train.latest_checkpoint('save/'))
 '''loss_track = []
 
 for epoch in range(0, epochs):
-	for batch in range(0, 199):
+	for batch in range(0, 200):
 		input_x = x[:,batch*batch_size:(batch+1)*batch_size]
 		input_y = y[:,batch*batch_size:(batch+1)*batch_size]
 		target_y = target[:,batch*batch_size:(batch+1)*batch_size]
@@ -120,6 +121,7 @@ for epoch in range(0, epochs):
 			decoder_targets_ids: target_y,
 			decoder_sequence_length: dec_seq_length}))
 		loss_track.append(l)
+	print(l)
 
 input_x = x[:,19900:20000]
 input_y = y[:,19900:20000]
@@ -138,13 +140,12 @@ for i in range(100):
 	print(input_y[:,i], end= " ")
 	print(prediction[:,i])
 
+
 plt.plot(loss_track)
 plt.show()
 
-print(loss_track[-1])
-'''
 
-#saver.save(sess, "save/my_test_model")
+saver.save(sess, "save/my_test_model")
 '''
 def inference(decoder_logits):
 
@@ -171,7 +172,5 @@ def inference(decoder_logits):
 
 		print(prediction)
 
+
 inference(decoder_logits)
-'''
-with sess:
-	print(embeddings[0].eval())
